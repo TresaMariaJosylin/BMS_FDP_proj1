@@ -22,27 +22,44 @@ if not OPENAI_API_KEY:
     sys.exit(1)
 
 try:
-    import openai
-except Exception as e:
+    from openai import OpenAI
+except Exception:
     print("The 'openai' package is required. Install with: pip install openai")
     raise
 
-openai.api_key = OPENAI_API_KEY
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+
+def _extract_content_from_choice(choice) -> str:
+    # Try a few common shapes to extract the assistant text
+    try:
+        # new-style: choice.message.content or choice.message['content']
+        msg = getattr(choice, "message", None)
+        if msg:
+            if isinstance(msg, dict):
+                return msg.get("content", "").strip()
+            # object with attribute
+            return getattr(msg, "content", "").strip()
+    except Exception:
+        pass
+    try:
+        # older-style: choice.get('text')
+        return choice.get("text", "").strip()
+    except Exception:
+        pass
+    # last-resort string conversion
+    return str(choice).strip()
 
 
 def call_llm(prompt: str) -> str:
-    resp = openai.ChatCompletion.create(
+    resp = client.chat.completions.create(
         model=MODEL,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=250,
     )
-    # handle common response shapes
-    choice = resp.choices[0]
-    # new ChatCompletion returns message
-    if hasattr(choice, 'message'):
-        return choice.message.get('content', '').strip()
-    # fallback for older/other shapes
-    return choice.get('text', '').strip()
+    if not getattr(resp, "choices", None):
+        return str(resp)
+    return _extract_content_from_choice(resp.choices[0])
 
 
 def main() -> None:
