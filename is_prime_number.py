@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Simple prime number checker.
+"update the prime"
 
 Usage:
   python is_prime_number.py 17      # non-interactive
